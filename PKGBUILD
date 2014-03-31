@@ -9,9 +9,10 @@ url='http://open-vm-tools.sourceforge.net/'
 license=('GPL2')
 conflicts=('open-vm-tools-modules', 'vmware-modules-dkms')
 
-depends=('dkms' 'linux-headers')
+depends=('dkms')
 options=('!strip')
-optdepends=('open-vm-tools: Open Virtual Machine Tools')
+optdepends=('open-vm-tools: Open Virtual Machine Tools'
+            'linux-headers: Header files for Linux kernel')
 
 _name='open-vm-tools'
 _version="${pkgver}-${pkgrel}"

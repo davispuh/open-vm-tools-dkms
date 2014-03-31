@@ -1,5 +1,5 @@
 diff --git a/modules/linux/vmblock/linux/control.c b/modules/linux/vmblock/linux/control.c
-index 79716bd..8dc8bc3 100644
+index 79716bd..306f193 100644
 --- a/modules/linux/vmblock/linux/control.c
 +++ b/modules/linux/vmblock/linux/control.c
 @@ -208,17 +208,23 @@ SetupProcDevice(void)
@@ -60,7 +60,7 @@ index 79716bd..8dc8bc3 100644
     retval = i < 0 ? -EINVAL : blockOp(name, blocker);
  
 -   putname(name);
-+   putname(fname);
++   __putname(name);
  
     return retval;
  }

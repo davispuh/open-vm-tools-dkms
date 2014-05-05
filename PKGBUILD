@@ -1,6 +1,7 @@
 # Maintainer: Dāvis Mosāns <davispuh at gmail dot com>
 
 pkgname=open-vm-tools-dkms
+epoch=1
 pkgver=2013.09.16
 pkgrel=1328054
 pkgdesc='Open Virtual Machine Tools kernel modules (DKMS)'

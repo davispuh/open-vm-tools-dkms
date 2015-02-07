@@ -1,7 +1,7 @@
 # Maintainer: Dāvis Mosāns <davispuh at gmail dot com>
 
 pkgname=open-vm-tools-dkms
-epoch=4
+epoch=5
 pkgver=9.4.6
 _pkgsubver=1770165
 pkgrel=3
@@ -40,7 +40,7 @@ sha256sums=('54d7a83d8115124e4b809098b08d7017ba50828801c2f105cdadbc85a064a079'
             'e9b464790acbd429c6742a87b098ce51e7872511f75400d9d17afeaf2d2f6dea'
             'cbb7116499a33872e1861e050db81c3384e4ff59b767233d34b434ce12e899ad'
             'e8248176971056aca54d1e69a4b2f90e04a1589dd4b596b2af6746be9c3e96a3'
-            '265a778624d72114f2afdc6619667fd116c4641bba6a42692acfb77a0f9bc81b'
+            '4191f602b519f3ca824017177e2b10f45bd5a9872eb0cf2b19b13d1009cef5af'
             '5255a183cccd80b2bfbbf519b1cc8cec81ae40bbc0b5a88dfddd95532ece84ed')
 
 prepare() {
@@ -62,4 +62,3 @@ package() {
     rm -rf "${pkgdir}/usr/src/${_name}-${pkgver}/${_module}"
   done
 }
-

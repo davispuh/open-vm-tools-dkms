@@ -31,6 +31,7 @@ source=(http://downloads.sourceforge.net/${_name}/${_full_name}.tar.gz
         0006-Fix-vmxnet-module-on-kernels-3.16.patch
         0007-Fix-vmhgfs-module-on-kernels-3.16.patch
         0008-Fix-segfault-in-vmhgfs.patch
+	0009-Fix-f_dentry-msghdr-kernel-3.19.patch
         dkms.conf.in)
 sha256sums=('54d7a83d8115124e4b809098b08d7017ba50828801c2f105cdadbc85a064a079'
             'a30ea0d0e2dd025eecb435c7a7b02b7c69e03fac8e67dc5d7f68998847a97240'
@@ -41,6 +42,7 @@ sha256sums=('54d7a83d8115124e4b809098b08d7017ba50828801c2f105cdadbc85a064a079'
             'cbb7116499a33872e1861e050db81c3384e4ff59b767233d34b434ce12e899ad'
             'e8248176971056aca54d1e69a4b2f90e04a1589dd4b596b2af6746be9c3e96a3'
             '265a778624d72114f2afdc6619667fd116c4641bba6a42692acfb77a0f9bc81b'
+	    'c58326ea9a9b57d24e6a237d1d7281da938a87d1e0daf940a8cdf7f7f15abcac'
             '5255a183cccd80b2bfbbf519b1cc8cec81ae40bbc0b5a88dfddd95532ece84ed')
 
 prepare() {
@@ -52,6 +54,7 @@ prepare() {
   patch -d "$srcdir/${_full_name}" -Np2 -i "$srcdir/0006-Fix-vmxnet-module-on-kernels-3.16.patch"
   patch -d "$srcdir/${_full_name}" -Np2 -i "$srcdir/0007-Fix-vmhgfs-module-on-kernels-3.16.patch"
   patch -d "$srcdir/${_full_name}" -Np2 -i "$srcdir/0008-Fix-segfault-in-vmhgfs.patch"
+  patch -d "$srcdir/${_full_name}" -Np2 -i "$srcdir/0009-Fix-f_dentry-msghdr-kernel-3.19.patch"
 }
 
 package() {
@@ -62,4 +65,3 @@ package() {
     rm -rf "${pkgdir}/usr/src/${_name}-${pkgver}/${_module}"
   done
 }
-

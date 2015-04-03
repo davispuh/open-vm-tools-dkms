@@ -1,0 +1,423 @@
+diff -Naur a/open-vm-tools-9.4.6-1770165/modules/linux/vmhgfs/dir.c b/open-vm-tools-9.4.6-1770165/modules/linux/vmhgfs/dir.c
+--- a/open-vm-tools-9.4.6-1770165/modules/linux/vmhgfs/dir.c	2014-07-02 00:21:14.000000000 +0200
++++ b/open-vm-tools-9.4.6-1770165/modules/linux/vmhgfs/dir.c	2015-03-27 17:57:07.068402386 +0100
+@@ -31,6 +31,7 @@
+ #include "compat_kernel.h"
+ #include "compat_slab.h"
+ #include "compat_mutex.h"
++#include "compat_dentry.h"
+ 
+ #include "cpName.h"
+ #include "hgfsEscape.h"
+@@ -414,7 +415,7 @@
+ 
+    /* Build full name to send to server. */
+    if (HgfsBuildPath(name, req->bufferSize - (requestSize - 1),
+-                     file->f_dentry) < 0) {
++                     DENTRY(file)) < 0) {
+       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackDirOpenRequest: build path failed\n"));
+       return -EINVAL;
+    }
+@@ -560,8 +561,8 @@
+    int result = 0;
+ 
+    ASSERT(file);
+-   ASSERT(file->f_dentry);
+-   ASSERT(file->f_dentry->d_sb);
++   ASSERT(DENTRY(file));
++   ASSERT(DENTRY(file)->d_sb);
+ 
+    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsPrivateDirRelease: close fh %u\n", handle));
+ 
+@@ -704,7 +705,7 @@
+               loff_t offset,
+               int origin)
+ {
+-   struct dentry *dentry = file->f_dentry;
++   struct dentry *dentry = DENTRY(file);
+    struct inode *inode = dentry->d_inode;
+    compat_mutex_t *mtx;
+ 
+@@ -853,7 +854,7 @@
+    }
+ 
+    LOG(6, (KERN_DEBUG "VMware hgfs: %s: error: stale handle (%s) return %d)\n",
+-            __func__, file->f_dentry->d_name.name, result));
++            __func__, DENTRY(file)->d_name.name, result));
+    return result;
+ }
+ 
+@@ -988,9 +989,9 @@
+    char *fileName = NULL;
+    int result;
+ 
+-   ASSERT(file->f_dentry->d_inode->i_sb);
++   ASSERT(DENTRY(file)->d_inode->i_sb);
+ 
+-   si = HGFS_SB_TO_COMMON(file->f_dentry->d_inode->i_sb);
++   si = HGFS_SB_TO_COMMON(DENTRY(file)->d_inode->i_sb);
+    *entryIgnore = FALSE;
+ 
+    /*
+@@ -1079,18 +1080,18 @@
+     */
+    if (!strncmp(entryName, ".", sizeof ".")) {
+       if (!dotAndDotDotIgnore) {
+-         *entryIno = file->f_dentry->d_inode->i_ino;
++         *entryIno = DENTRY(file)->d_inode->i_ino;
+       } else {
+          *entryIgnore = TRUE;
+       }
+    } else if (!strncmp(entryName, "..", sizeof "..")) {
+       if (!dotAndDotDotIgnore) {
+-         *entryIno = compat_parent_ino(file->f_dentry);
++         *entryIno = compat_parent_ino(DENTRY(file));
+       } else {
+          *entryIgnore = TRUE;
+       }
+    } else {
+-     *entryIno = HgfsGetFileInode(&entryAttrs, file->f_dentry->d_inode->i_sb);
++     *entryIno = HgfsGetFileInode(&entryAttrs, DENTRY(file)->d_inode->i_sb);
+    }
+ 
+    if (*entryIgnore) {
+@@ -1170,16 +1171,16 @@
+    ASSERT(filldirCtx);
+ 
+    if (!file ||
+-      !(file->f_dentry) ||
+-      !(file->f_dentry->d_inode)) {
++      !(DENTRY(file)) ||
++      !(DENTRY(file)->d_inode)) {
+       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsReaddir: null input\n"));
+       return -EFAULT;
+    }
+ 
+    LOG(4, (KERN_DEBUG "VMware hgfs: %s(%s, inum %lu, pos %Lu)\n",
+           __func__,
+-          file->f_dentry->d_name.name,
+-          file->f_dentry->d_inode->i_ino,
++          DENTRY(file)->d_name.name,
++          DENTRY(file)->d_inode->i_ino,
+           *currentPos));
+ 
+    /*
+@@ -1294,7 +1295,7 @@
+    /* If either dot and dotdot are filled in for us we can exit. */
+    if (!dir_emit_dots(file, ctx)) {
+       LOG(6, (KERN_DEBUG "VMware hgfs: %s: dir_emit_dots(%s, @ %Lu)\n",
+-              __func__, file->f_dentry->d_name.name, ctx->pos));
++              __func__, DENTRY(file)->d_name.name, ctx->pos));
+       return 0;
+    }
+ 
+@@ -1464,8 +1465,8 @@
+ 
+    ASSERT(inode);
+    ASSERT(file);
+-   ASSERT(file->f_dentry);
+-   ASSERT(file->f_dentry->d_sb);
++   ASSERT(DENTRY(file));
++   ASSERT(DENTRY(file)->d_sb);
+ 
+    handle = FILE_GET_FI_P(file)->handle;
+ 
+diff -Naur a/open-vm-tools-9.4.6-1770165/modules/linux/vmhgfs/file.c b/open-vm-tools-9.4.6-1770165/modules/linux/vmhgfs/file.c
+--- a/open-vm-tools-9.4.6-1770165/modules/linux/vmhgfs/file.c	2015-03-27 17:51:35.818740056 +0100
++++ b/open-vm-tools-9.4.6-1770165/modules/linux/vmhgfs/file.c	2015-03-27 18:15:52.078897728 +0100
+@@ -32,6 +32,7 @@
+ #include "compat_fs.h"
+ #include "compat_kernel.h"
+ #include "compat_slab.h"
++#include "compat_dentry.h"
+ 
+ /* Must be after compat_fs.h */
+ #if defined VMW_USE_AIO
+@@ -362,7 +363,7 @@
+    /* Build full name to send to server. */
+    if (HgfsBuildPath(name,
+                      req->bufferSize - (requestSize - 1),
+-                     file->f_dentry) < 0) {
++                     DENTRY(file)) < 0) {
+       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsPackOpenRequest: build path "
+               "failed\n"));
+       return -EINVAL;
+@@ -589,8 +590,8 @@
+    ASSERT(inode);
+    ASSERT(inode->i_sb);
+    ASSERT(file);
+-   ASSERT(file->f_dentry);
+-   ASSERT(file->f_dentry->d_inode);
++   ASSERT(DENTRY(file));
++   ASSERT(DENTRY(file)->d_inode);
+ 
+    iinfo = INODE_GET_II_P(inode);
+ 
+@@ -667,7 +668,7 @@
+              * This is not the root of our file system so there should always
+              * be a parent.
+              */
+-            ASSERT(file->f_dentry->d_parent);
++            ASSERT(DENTRY(file)->d_parent);
+ 
+             /*
+              * Here we obtain a reference on the parent to make sure it doesn't
+@@ -682,10 +683,10 @@
+              * We could do this if we were willing to give up support for
+              * O_EXCL on 2.4 kernels.
+              */
+-            dparent = dget(file->f_dentry->d_parent);
++            dparent = dget(DENTRY(file)->d_parent);
+             iparent = dparent->d_inode;
+ 
+-            HgfsSetUidGid(iparent, file->f_dentry,
++            HgfsSetUidGid(iparent, DENTRY(file),
+                           current_fsuid(), current_fsgid());
+ 
+             dput(dparent);
+@@ -745,7 +746,7 @@
+     * forcing a revalidate on one will not force it on any others.
+     */
+    if (result != 0 && iinfo->createdAndUnopened == TRUE) {
+-      HgfsDentryAgeForce(file->f_dentry);
++      HgfsDentryAgeForce(DENTRY(file));
+    }
+    return result;
+ }
+@@ -781,12 +782,12 @@
+ 
+    ASSERT(iocb);
+    ASSERT(iocb->ki_filp);
+-   ASSERT(iocb->ki_filp->f_dentry);
++   ASSERT(DENTRY(iocb->ki_filp));
+    ASSERT(iov);
+ 
+    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsAioRead: was called\n"));
+ 
+-   result = HgfsRevalidate(iocb->ki_filp->f_dentry);
++   result = HgfsRevalidate(DENTRY(iocb->ki_filp));
+    if (result) {
+       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsAioRead: invalid dentry\n"));
+       goto out;
+@@ -832,10 +833,10 @@
+ 
+    ASSERT(iocb);
+    ASSERT(iocb->ki_filp);
+-   ASSERT(iocb->ki_filp->f_dentry);
++   ASSERT(DENTRY(iocb->ki_filp));
+    ASSERT(iov);
+ 
+-   writeDentry = iocb->ki_filp->f_dentry;
++   writeDentry = DENTRY(iocb->ki_filp);
+    iinfo = INODE_GET_II_P(writeDentry->d_inode);
+ 
+    LOG(4, (KERN_DEBUG "VMware hgfs: HgfsAioWrite(%s/%s, %lu@%Ld)\n",
+@@ -915,14 +916,14 @@
+    int result;
+ 
+    ASSERT(file);
+-   ASSERT(file->f_dentry);
++   ASSERT(DENTRY(file));
+    ASSERT(buf);
+    ASSERT(offset);
+ 
+    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsRead: read %Zu bytes from fh %u "
+            "at offset %Lu\n", count, FILE_GET_FI_P(file)->handle, *offset));
+ 
+-   result = HgfsRevalidate(file->f_dentry);
++   result = HgfsRevalidate(DENTRY(file));
+    if (result) {
+       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsRead: invalid dentry\n"));
+       goto out;
+@@ -968,15 +969,15 @@
+    int result;
+ 
+    ASSERT(file);
+-   ASSERT(file->f_dentry);
+-   ASSERT(file->f_dentry->d_inode);
++   ASSERT(DENTRY(file));
++   ASSERT(DENTRY(file)->d_inode);
+    ASSERT(buf);
+    ASSERT(offset);
+ 
+    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsWrite: write %Zu bytes to fh %u "
+            "at offset %Lu\n", count, FILE_GET_FI_P(file)->handle, *offset));
+ 
+-   result = HgfsRevalidate(file->f_dentry);
++   result = HgfsRevalidate(DENTRY(file));
+    if (result) {
+       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsWrite: invalid dentry\n"));
+       goto out;
+@@ -1020,12 +1021,12 @@
+    loff_t result = -1;
+ 
+    ASSERT(file);
+-   ASSERT(file->f_dentry);
++   ASSERT(DENTRY(file));
+ 
+    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsSeek: seek to %Lu bytes from fh %u "
+            "from position %d\n", offset, FILE_GET_FI_P(file)->handle, origin));
+ 
+-   result = (loff_t) HgfsRevalidate(file->f_dentry);
++   result = (loff_t) HgfsRevalidate(DENTRY(file));
+    if (result) {
+       LOG(6, (KERN_DEBUG "VMware hgfs: HgfsSeek: invalid dentry\n"));
+       goto out;
+@@ -1108,8 +1109,8 @@
+    int ret = 0;
+ 
+    LOG(4, (KERN_DEBUG "VMware hgfs: HgfsFlush(%s/%s)\n",
+-            file->f_dentry->d_parent->d_name.name,
+-            file->f_dentry->d_name.name));
++            DENTRY(file)->d_parent->d_name.name,
++            DENTRY(file)->d_name.name));
+ 
+    if ((file->f_mode & FMODE_WRITE) == 0) {
+       goto exit;
+@@ -1121,7 +1122,7 @@
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36)
+    ret = vfs_fsync(file, 0);
+ #else
+-   ret = HgfsDoFsync(file->f_dentry->d_inode);
++   ret = HgfsDoFsync(DENTRY(file)->d_inode);
+ #endif
+ 
+ exit:
+@@ -1177,13 +1178,13 @@
+ #endif
+ 
+    LOG(4, (KERN_DEBUG "VMware hgfs: HgfsFsync(%s/%s, %lld, %lld, %d)\n",
+-           file->f_dentry->d_parent->d_name.name,
+-           file->f_dentry->d_name.name,
++           DENTRY(file)->d_parent->d_name.name,
++           DENTRY(file)->d_name.name,
+            startRange, endRange,
+            datasync));
+ 
+    /* Flush writes to the server and return any errors */
+-   inode = file->f_dentry->d_inode;
++   inode = DENTRY(file)->d_inode;
+ #if defined VMW_FSYNC_31
+    ret = filemap_write_and_wait_range(inode->i_mapping, startRange, endRange);
+ #else
+@@ -1223,11 +1224,11 @@
+ 
+    ASSERT(file);
+    ASSERT(vma);
+-   ASSERT(file->f_dentry);
++   ASSERT(DENTRY(file));
+ 
+    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsMmap: was called\n"));
+ 
+-   result = HgfsRevalidate(file->f_dentry);
++   result = HgfsRevalidate(DENTRY(file));
+    if (result) {
+       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsMmap: invalid dentry\n"));
+       goto out;
+@@ -1268,8 +1269,8 @@
+ 
+    ASSERT(inode);
+    ASSERT(file);
+-   ASSERT(file->f_dentry);
+-   ASSERT(file->f_dentry->d_sb);
++   ASSERT(DENTRY(file));
++   ASSERT(DENTRY(file)->d_sb);
+ 
+    handle = FILE_GET_FI_P(file)->handle;
+    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsRelease: close fh %u\n", handle));
+@@ -1398,14 +1399,14 @@
+    ssize_t result;
+ 
+    ASSERT(file);
+-   ASSERT(file->f_dentry);
++   ASSERT(DENTRY(file));
+    ASSERT(target);
+    ASSERT(offset);
+    ASSERT(actor);
+ 
+    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsSendfile: was called\n"));
+ 
+-   result = HgfsRevalidate(file->f_dentry);
++   result = HgfsRevalidate(DENTRY(file));
+    if (result) {
+       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSendfile: invalid dentry\n"));
+       goto out;
+@@ -1452,11 +1453,11 @@
+    ssize_t result;
+ 
+    ASSERT(file);
+-   ASSERT(file->f_dentry);
++   ASSERT(DENTRY(file));
+ 
+    LOG(6, (KERN_DEBUG "VMware hgfs: HgfsSpliceRead: was called\n"));
+ 
+-   result = HgfsRevalidate(file->f_dentry);
++   result = HgfsRevalidate(DENTRY(file));
+    if (result) {
+       LOG(4, (KERN_DEBUG "VMware hgfs: HgfsSpliceRead: invalid dentry\n"));
+       goto out;
+diff -Naur a/open-vm-tools-9.4.6-1770165/modules/linux/vmhgfs/fsutil.c b/open-vm-tools-9.4.6-1770165/modules/linux/vmhgfs/fsutil.c
+--- a/open-vm-tools-9.4.6-1770165/modules/linux/vmhgfs/fsutil.c	2015-03-27 17:51:35.805406384 +0100
++++ b/open-vm-tools-9.4.6-1770165/modules/linux/vmhgfs/fsutil.c	2015-03-27 17:57:07.075069304 +0100
+@@ -36,6 +36,7 @@
+ #include "compat_sched.h"
+ #include "compat_slab.h"
+ #include "compat_spinlock.h"
++#include "compat_dentry.h"
+ 
+ #include "vm_assert.h"
+ #include "cpName.h"
+@@ -1936,7 +1937,7 @@
+ 
+    ASSERT(file);
+ 
+-   inodeInfo = INODE_GET_II_P(file->f_dentry->d_inode);
++   inodeInfo = INODE_GET_II_P(DENTRY(file)->d_inode);
+    ASSERT(inodeInfo);
+ 
+    /* Get the mode of the opened file. */
+diff -Naur a/open-vm-tools-9.4.6-1770165/modules/linux/vmhgfs/shared/compat_dentry.h b/open-vm-tools-9.4.6-1770165/modules/linux/vmhgfs/shared/compat_dentry.h
+--- a/open-vm-tools-9.4.6-1770165/modules/linux/vmhgfs/shared/compat_dentry.h	1970-01-01 01:00:00.000000000 +0100
++++ b/open-vm-tools-9.4.6-1770165/modules/linux/vmhgfs/shared/compat_dentry.h	2015-03-27 16:06:43.992889886 +0100
+@@ -0,0 +1,10 @@
++#ifndef __COMPAT_DENTRY_H__
++#   define __COMPAT_DENTRY_H__
++
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)
++# define DENTRY(file) (file->f_path.dentry)
++#else
++# define DENTRY(file) (file->f_dentry)
++#endif
++
++#endif /* __COMPAT_DENTRY_H__ */
+diff -Naur a/open-vm-tools-9.4.6-1770165/modules/linux/vmhgfs/tcp.c b/open-vm-tools-9.4.6-1770165/modules/linux/vmhgfs/tcp.c
+--- a/open-vm-tools-9.4.6-1770165/modules/linux/vmhgfs/tcp.c	2014-07-02 00:21:14.000000000 +0200
++++ b/open-vm-tools-9.4.6-1770165/modules/linux/vmhgfs/tcp.c	2015-03-27 18:21:56.478198487 +0100
+@@ -257,8 +257,13 @@
+ 
+    memset(&msg, 0, sizeof msg);
+    msg.msg_flags = flags;
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)
++   msg.msg_iter.iov = &iov;
++   msg.msg_iter.nr_segs = 1;
++#else
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
++#endif
+    iov.iov_base = buffer;
+    iov.iov_len = bufferLen;
+ 
+@@ -773,8 +778,13 @@
+    memset(&msg, 0, sizeof msg);
+    iov.iov_base = buffer;
+    iov.iov_len = bufferLen;
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)
++   msg.msg_iter.iov = &iov;
++   msg.msg_iter.nr_segs = 1;
++#else
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
++#endif
+ 
+    while (bufferLen > 0) {
+       set_fs(KERNEL_DS);

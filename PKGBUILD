@@ -1,7 +1,7 @@
 # Maintainer: Dāvis Mosāns <davispuh at gmail dot com>
 
 pkgname=open-vm-tools-dkms
-epoch=5
+epoch=6
 pkgver=9.10.0
 _pkgsubver=2476743
 pkgrel=3

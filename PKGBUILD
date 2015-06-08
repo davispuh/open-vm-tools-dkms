@@ -33,7 +33,7 @@ sha256sums=('e146ad53d744d7793ee72c5271fc49a916613534c14827c227fdaef4b3579c96'
             '6684cf4cd9a492b82b24dff076fbbafef19e59ef969f532ee3da1501136a7c48'
             'e14cbd10ccdea09e5faa7a63b16113d42b2b85ed6a1ffc863345effcdf4f5275'
             'eac8e2d34fbd25f1191314c53b5e67d312ac3bde1ea87bce92ee87bcc8e35886'
-            '4c319b65712b1f890de1115b95edabf0094f68285cbf20bd82b85b4902f69f83'
+            '08ded9b4127306a4f82f2ad05e9d45e8ca5a992c9b9d8e2fc4dd57fa3ce86354'
             '5255a183cccd80b2bfbbf519b1cc8cec81ae40bbc0b5a88dfddd95532ece84ed')
 
 prepare() {

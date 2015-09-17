@@ -10,10 +10,10 @@ Subject: [PATCH] Support backing dev info kernel 4.0.
  3 files changed, 23 insertions(+)
 
 diff --git a/open-vm-tools/modules/linux/vmhgfs/filesystem.c b/open-vm-tools/modules/linux/vmhgfs/filesystem.c
-index 33c4c56..0dfb6ef 100644
+index 10dd8ab..3148091 100644
 --- a/open-vm-tools/modules/linux/vmhgfs/filesystem.c
 +++ b/open-vm-tools/modules/linux/vmhgfs/filesystem.c
-@@ -386,8 +386,21 @@ HgfsReadSuper(struct super_block *sb, // OUT: Superblock object
+@@ -398,8 +398,21 @@ HgfsReadSuper(struct super_block *sb, // OUT: Superblock object
        return PTR_ERR(si);
     }
     HGFS_SET_SB_TO_COMMON(sb, si);
@@ -35,7 +35,7 @@ index 33c4c56..0dfb6ef 100644
  
  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 38)
     sb->s_d_op = &HgfsDentryOperations;
-@@ -427,6 +440,9 @@ HgfsReadSuper(struct super_block *sb, // OUT: Superblock object
+@@ -439,6 +452,9 @@ HgfsReadSuper(struct super_block *sb, // OUT: Superblock object
    exit:
     if (result) {
        dput(rootDentry);
@@ -46,7 +46,7 @@ index 33c4c56..0dfb6ef 100644
        kfree(si);
     }
 diff --git a/open-vm-tools/modules/linux/vmhgfs/module.h b/open-vm-tools/modules/linux/vmhgfs/module.h
-index 9c12332..e394b5f 100644
+index b673dc1..f3eeffc 100644
 --- a/open-vm-tools/modules/linux/vmhgfs/module.h
 +++ b/open-vm-tools/modules/linux/vmhgfs/module.h
 @@ -29,6 +29,7 @@
@@ -57,10 +57,10 @@ index 9c12332..e394b5f 100644
  #include "compat_fs.h"
  #include "compat_semaphore.h"
  #include "compat_slab.h"
-@@ -130,6 +131,9 @@ typedef struct HgfsSuperInfo {
-    uint32 ttl;                      /* Maximum dentry age (in ticks). */
+@@ -144,6 +145,9 @@ typedef struct HgfsSuperInfo {
     char *shareName;                 /* Mounted share name. */
     size_t shareNameLen;             /* To avoid repeated strlen() calls. */
+    uint32 mntFlags;                 /* HGFS mount flags */
 +#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)
 +   struct backing_dev_info bdi;
 +#endif
